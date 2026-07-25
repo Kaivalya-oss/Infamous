@@ -593,8 +593,8 @@ app.put('/api/admin/orders/:id/status', verifyAdmin, async (req, res) => {
 // Vercel Serverless Export
 export default app;
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.VERCEL !== '1') {
   app.listen(port, () => {
-    console.log(`[Server]: INFAMOUS API is running at http://localhost:${port}`);
+    console.log(`[Server]: INFAMOUS API is running on port ${port}`);
   });
 }
