@@ -1,24 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { CheckCircle, XCircle, AlertTriangle, Monitor, Smartphone, Tablet } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import QuickViewModal from '../../components/QuickViewModal';
+import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
 export default function ProductPreview() {
   const { watch, register } = useFormContext();
   const formData = watch();
-  const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-
-  // Prepare product object for QuickViewModal based on form state
-  const previewProduct = useMemo(() => {
-    return {
-      name: formData.name || 'Untitled Product',
-      price: formData.variants?.[0]?.price || 0,
-      description: formData.description || 'No description provided.',
-      variants: formData.variants || [],
-      media: formData.media || []
-    };
-  }, [formData]);
 
   // Validation Engine
   const validations = useMemo(() => {
@@ -26,16 +13,19 @@ export default function ProductPreview() {
       general: {
         name: !!formData.name,
         slug: !!formData.slug,
-        category: !!formData.category
+        category: !!formData.category_id
       },
       variants: {
         exists: formData.variants?.length > 0,
-        uniqueSku: new Set(formData.variants?.map((v: any) => v.sku)).size === formData.variants?.length,
-        positiveStock: formData.variants?.every((v: any) => v.stock >= 0),
-        active: formData.variants?.some((v: any) => v.status === 'ACTIVE')
+        uniqueSku: (() => {
+          const skus = formData.variants?.map((v: Record<string, any>) => v.sku).filter((sku: string) => sku && sku.trim() !== '') || [];
+          return new Set(skus).size === skus.length;
+        })(),
+        positiveStock: formData.variants?.every((v: Record<string, any>) => v.stock >= 0),
+        active: formData.variants?.some((v: Record<string, any>) => v.status === 'ACTIVE')
       },
       media: {
-        coverExists: formData.media?.some((m: any) => m.is_cover),
+        coverExists: formData.media?.some((m: Record<string, any>) => m.is_cover),
       }
     };
     
@@ -125,31 +115,6 @@ export default function ProductPreview() {
             <p className="text-[#1a0dab] text-xl font-medium hover:underline cursor-pointer truncate">{seoTitle || 'Product Title'}</p>
             <p className="text-[#006621] text-sm truncate mb-1">https://infamousonline.in/product/{formData.slug || 'slug'}</p>
             <p className="text-[#545454] text-sm line-clamp-2">{seoDesc || 'Meta description preview...'}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* CUSTOMER FRONTEND PREVIEW */}
-      <div className="bg-white/5 border border-white/10 rounded-[24px] overflow-hidden">
-        <div className="bg-black/40 border-b border-white/10 p-4 flex justify-between items-center">
-          <h3 className="font-medium">Live Customer Preview</h3>
-          <div className="flex bg-black/40 rounded-lg p-1">
-            <button type="button" onClick={() => setDevice('desktop')} className={`p-2 rounded ${device === 'desktop' ? 'bg-white/10' : 'text-white/40'}`}><Monitor size={16} /></button>
-            <button type="button" onClick={() => setDevice('tablet')} className={`p-2 rounded ${device === 'tablet' ? 'bg-white/10' : 'text-white/40'}`}><Tablet size={16} /></button>
-            <button type="button" onClick={() => setDevice('mobile')} className={`p-2 rounded ${device === 'mobile' ? 'bg-white/10' : 'text-white/40'}`}><Smartphone size={16} /></button>
-          </div>
-        </div>
-        
-        <div className="p-8 flex justify-center bg-zinc-900/50 min-h-[600px] overflow-y-auto">
-          <div className={`transition-all duration-300 w-full relative ${
-            device === 'desktop' ? 'max-w-[1000px]' : 
-            device === 'tablet' ? 'max-w-[768px]' : 
-            'max-w-[375px]'
-          }`}>
-             {/* Renders the actual QuickViewModal using the live draft data */}
-             <div className="scale-90 origin-top">
-                <QuickViewModal product={previewProduct} onClose={() => {}} isTopmost={false} />
-             </div>
           </div>
         </div>
       </div>

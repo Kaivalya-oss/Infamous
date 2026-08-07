@@ -1,8 +1,10 @@
+/* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import api from '../lib/axios';
 import { Button } from './ui/Button';
 import { QuantitySelector } from './ui/QuantitySelector';
 
@@ -40,16 +42,16 @@ export default function QuickViewModal({ product, onClose, onSelectProduct, zInd
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { addToCart } = useCart();
-  const { isAuthenticated, user } = useAuth(); // Assume we imported useAuth
+  const { isAuthenticated } = useAuth(); // Assume we imported useAuth
 
   // Extract dynamic colors and sizes from API variants
   const uniqueColors = product?.variants 
     ? Array.from(new Set(product.variants.filter(v => v.color).map(v => v.color)))
-    : ['Black', 'White', 'Ash Grey']; // Fallback for old mock data
+    : []; 
 
   const uniqueSizes = product?.variants
     ? Array.from(new Set(product.variants.filter(v => v.size).map(v => v.size)))
-    : ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    : [];
 
   // Initialize defaults if dynamic data exists
   useEffect(() => {
@@ -66,10 +68,14 @@ export default function QuickViewModal({ product, onClose, onSelectProduct, zInd
   // Check if user purchased the product
   useEffect(() => {
     if (isAuthenticated && product) {
-      // In a real app, this would be an API call verifying past orders
-      // For demonstration, we'll mock that the authenticated user has purchased this product
-      // if their email is 'guest' or we just set it to true.
-      setHasPurchased(true); 
+      api.get(`/api/products/${product.id}/review-eligibility`)
+        .then((res: any) => {
+          setHasPurchased(res.data.eligible);
+        })
+        .catch((err: any) => {
+          console.error("Failed to verify purchase eligibility", err);
+          setHasPurchased(false);
+        });
     } else {
       setHasPurchased(false);
     }
@@ -91,23 +97,25 @@ export default function QuickViewModal({ product, onClose, onSelectProduct, zInd
       setReviewTitle('');
       setReviewComment('');
 
-      // Store original overflow and padding
-      const originalOverflow = document.body.style.overflow;
-      // Add padding to prevent layout shift when scrollbar disappears
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      const originalPaddingRight = document.body.style.paddingRight;
-      
-      document.body.style.overflow = 'hidden';
-      if (scrollbarWidth > 0) {
-        document.body.style.paddingRight = `${scrollbarWidth}px`;
-      }
+      if (isTopmost) {
+        // Store original overflow and padding
+        const originalOverflow = document.body.style.overflow;
+        // Add padding to prevent layout shift when scrollbar disappears
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+        const originalPaddingRight = document.body.style.paddingRight;
+        
+        document.body.style.overflow = 'hidden';
+        if (scrollbarWidth > 0) {
+          document.body.style.paddingRight = `${scrollbarWidth}px`;
+        }
 
-      return () => {
-        document.body.style.overflow = originalOverflow;
-        document.body.style.paddingRight = originalPaddingRight;
-      };
+        return () => {
+          document.body.style.overflow = originalOverflow;
+          document.body.style.paddingRight = originalPaddingRight;
+        };
+      }
     }
-  }, [product]);
+  }, [product, isTopmost]);
 
   if (!product) return null;
 
@@ -123,11 +131,7 @@ export default function QuickViewModal({ product, onClose, onSelectProduct, zInd
     onClose();
   };
 
-  const reviews = [
-    { id: 1, name: 'Alex M.', rating: 5, title: 'Excellent Quality', comment: 'The fabric feels premium and the oversized fit is exactly what I wanted.', date: '12 June 2026', verified: true },
-    { id: 2, name: 'Sam K.', rating: 4, title: 'Great but runs large', comment: 'Love the material but I suggest sizing down if you want a regular fit.', date: '05 June 2026', verified: true },
-    { id: 3, name: 'Jordan P.', rating: 5, title: 'Perfect', comment: 'Best purchase this year. The aesthetic is insane.', date: '28 May 2026', verified: false }
-  ];
+  const reviews: any[] = [];
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }).map((_, i) => (
@@ -312,18 +316,18 @@ export default function QuickViewModal({ product, onClose, onSelectProduct, zInd
                 <div className="border-t border-black/10 pt-12">
                   <h3 className="font-serif italic text-3xl mb-2">Customer Reviews</h3>
                   <div className="flex items-center gap-4 mb-8">
-                    <div className="text-2xl">{renderStars(5)}</div>
-                    <p className="font-medium">4.8 <span className="text-textSecondary font-light">(248 Reviews)</span></p>
+                    <div className="text-2xl">{renderStars(0)}</div>
+                    <p className="font-medium">0 <span className="text-textSecondary font-light">(0 Reviews)</span></p>
                   </div>
 
                   {/* Summary Bars */}
                   <div className="flex flex-col gap-2 mb-10">
                     {[
-                      { stars: 5, pct: 80 },
-                      { stars: 4, pct: 15 },
-                      { stars: 3, pct: 3 },
-                      { stars: 2, pct: 1 },
-                      { stars: 1, pct: 1 }
+                      { stars: 5, pct: 0 },
+                      { stars: 4, pct: 0 },
+                      { stars: 3, pct: 0 },
+                      { stars: 2, pct: 0 },
+                      { stars: 1, pct: 0 }
                     ].map((row) => (
                       <div key={row.stars} className="flex items-center gap-3 text-sm">
                         <span className="w-6 font-medium text-textSecondary">{row.stars}★</span>
@@ -396,40 +400,48 @@ export default function QuickViewModal({ product, onClose, onSelectProduct, zInd
                   )}
 
                   {/* Filters */}
-                  <div className="flex justify-between items-center mb-6">
-                    <span className="font-medium text-sm">Showing 3 reviews</span>
-                    <select 
-                      value={sortReview}
-                      onChange={(e) => setSortReview(e.target.value as any)}
-                      className="bg-secondary border-none rounded-full h-8 px-4 text-xs font-medium focus:outline-none cursor-pointer"
-                    >
-                      <option value="recent">Most Recent</option>
-                      <option value="highest">Highest Rated</option>
-                      <option value="lowest">Lowest Rated</option>
-                    </select>
-                  </div>
+                  {reviews.length > 0 && (
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="font-medium text-sm">Showing {reviews.length} reviews</span>
+                      <select 
+                        value={sortReview}
+                        onChange={(e) => setSortReview(e.target.value as any)}
+                        className="bg-secondary border-none rounded-full h-8 px-4 text-xs font-medium focus:outline-none cursor-pointer"
+                      >
+                        <option value="recent">Most Recent</option>
+                        <option value="highest">Highest Rated</option>
+                        <option value="lowest">Lowest Rated</option>
+                      </select>
+                    </div>
+                  )}
 
                   {/* Reviews List */}
-                  <div className="flex flex-col gap-6">
-                    {reviews.map((review) => (
-                      <div key={review.id} className="border-b border-black/5 pb-6 last:border-0">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <div className="text-sm mb-1">{renderStars(review.rating)}</div>
-                            <h4 className="font-medium">{review.title}</h4>
+                  {reviews.length === 0 ? (
+                    <div className="text-center py-8 text-textSecondary">
+                      <p>No reviews yet. Be the first to review this product!</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-6">
+                      {reviews.map((review) => (
+                        <div key={review.id} className="border-b border-black/5 pb-6 last:border-0">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <div className="text-sm mb-1">{renderStars(review.rating)}</div>
+                              <h4 className="font-medium">{review.title}</h4>
+                            </div>
+                            <span className="text-xs text-textSecondary">{review.date}</span>
                           </div>
-                          <span className="text-xs text-textSecondary">{review.date}</span>
+                          <p className="text-sm text-textSecondary leading-relaxed mb-3">{review.comment}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium">{review.name}</span>
+                            {review.verified && (
+                              <span className="text-[10px] uppercase tracking-[1px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">Verified Purchase</span>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-textSecondary leading-relaxed mb-3">{review.comment}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium">{review.name}</span>
-                          {review.verified && (
-                            <span className="text-[10px] uppercase tracking-[1px] bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">Verified Purchase</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                   
                 </div>
 

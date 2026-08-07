@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../lib/axios';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Search, Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import ProductMediaModal from './ProductMediaModal';
 
 export default function Products() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
@@ -16,7 +18,7 @@ export default function Products() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('http://localhost:5000/api/admin/products')
+    api.get('/api/admin/products')
       .then(res => {
         setProducts(res.data.products || []);
         setError(false);
@@ -27,6 +29,17 @@ export default function Products() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDeleteProduct = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) return;
+    try {
+      await api.delete(`/api/admin/products/${id}`);
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      console.error("Failed to delete product", err);
+      alert("Failed to delete product");
+    }
+  };
 
   return (
     <motion.div 
@@ -40,7 +53,7 @@ export default function Products() {
           <h2 className="font-serif italic text-[36px] md:text-[48px] leading-none mb-2">Products</h2>
           <p className="text-white/60 font-light">Manage your entire catalog, pricing, and media.</p>
         </div>
-        <Button className="bg-white text-black hover:bg-white/90 gap-2">
+        <Button onClick={() => navigate('/admin/products/new')} className="bg-white text-black hover:bg-white/90 gap-2">
           <Plus size={18} />
           Add Product
         </Button>
@@ -101,7 +114,7 @@ export default function Products() {
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-white/60">
                     <p className="font-medium mb-4">No products found.</p>
-                    <Button className="bg-white text-black hover:bg-white/90 mx-auto">Create Product</Button>
+                    <Button onClick={() => navigate('/admin/products/new')} className="bg-white text-black hover:bg-white/90 mx-auto">Create Product</Button>
                   </td>
                 </tr>
               ) : (
@@ -131,15 +144,23 @@ export default function Products() {
                       <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
                           className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/60 hover:text-white"
-                          title="Manage Media"
-                          onClick={() => setSelectedProduct(product)}
+                          title="Edit Product"
+                          onClick={() => navigate(`/admin/products/${product.id}`)}
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button className="p-2 hover:bg-red-500/20 hover:text-red-400 rounded-full transition-colors text-white/60">
+                        <button 
+                          className="p-2 hover:bg-red-500/20 hover:text-red-400 rounded-full transition-colors text-white/60"
+                          title="Delete Product"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
                           <Trash2 size={16} />
                         </button>
-                        <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                        <button 
+                          className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                          title="Manage Media"
+                          onClick={() => setSelectedProduct(product)}
+                        >
                           <MoreVertical size={16} />
                         </button>
                       </div>

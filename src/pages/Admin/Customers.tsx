@@ -1,3 +1,4 @@
+import api from '../../lib/axios';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
@@ -11,7 +12,7 @@ export default function AdminCustomers() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/admin/customers')
+    api.get('/api/admin/customers')
       .then(res => {
         setCustomers(res.data.customers || []);
         setError(false);

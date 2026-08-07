@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
-import axios from 'axios';
+import api from '../../lib/axios';
 import { UploadCloud, X, Star, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
@@ -44,7 +44,7 @@ export default function ProductMediaManager() {
         formData.append('file', file);
         
         // Post to our secure Express backend which handles the Cloudinary SDK
-        const response = await axios.post('http://localhost:5000/api/admin/upload', formData, {
+        const response = await api.post('/api/admin/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
         
@@ -56,7 +56,7 @@ export default function ProductMediaManager() {
       // Map results to the form state format matching our PostgreSQL schema
       const newMedia = results.map((res: any) => ({
         cloudinary_public_id: res.public_id,
-        cloudinary_url: res.secure_url,
+        cloudinary_url: res.url || res.secure_url,
         is_cover: mediaList.length === 0, // Auto-set first image as cover
         media_type: res.format === 'mp4' || res.format === 'webm' ? 'VIDEO' : 'IMAGE',
         display_order: mediaList.length,

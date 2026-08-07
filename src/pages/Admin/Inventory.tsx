@@ -1,3 +1,4 @@
+import api from '../../lib/axios';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
@@ -11,7 +12,7 @@ export default function Inventory() {
   const [alerts, setAlerts] = useState<any[]>([]);
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/admin/inventory')
+    api.get('/api/admin/inventory')
       .then(res => {
         setInventoryMatrix(res.data.inventory || []);
         setAlerts(res.data.alerts || []);

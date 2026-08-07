@@ -32,9 +32,7 @@ export default function Checkout() {
   const [step, setStep] = useState(1);
   const [deliveryType, setDeliveryType] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [useCredit, setUseCredit] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [creditBalance, setCreditBalance] = useState(1000);
   const [addressData, setAddressData] = useState<CheckoutFormValues | null>(null);
   
   useEffect(() => {
@@ -54,22 +52,18 @@ export default function Checkout() {
 
   const watchPincode = watch("pincode");
 
-  // Delivery Logic Evaluation based on Pincode (Mock)
+  // Delivery Logic Evaluation based on Pincode (Real API Call)
   useEffect(() => {
     if (watchPincode && watchPincode.length === 6) {
-      // Mock logic: 400xxx is Mumbai
-      const isMumbai = watchPincode.startsWith('400');
-      
-      if (isMumbai) {
-        const currentHour = new Date().getHours();
-        if (currentHour < 17) {
-          setDeliveryType('SAME_DAY');
-        } else {
-          setDeliveryType('NEXT_DAY');
-        }
-      } else {
-        setDeliveryType('STANDARD');
-      }
+      // Call backend to calculate shipping serviceability
+      api.post('/api/shipping/calculate', { pincode: watchPincode })
+        .then(response => {
+          setDeliveryType(response.data.deliveryType); // e.g. 'SAME_DAY', 'NEXT_DAY', 'STANDARD'
+        })
+        .catch(error => {
+          console.error("Shipping calculation failed", error);
+          setDeliveryType(null); // Fallback to unable to deliver
+        });
     } else {
       setDeliveryType(null);
     }
@@ -103,11 +97,6 @@ export default function Checkout() {
 
       const response = await api.post('/api/checkout/process', payload);
       
-      if (useCredit) {
-        const creditsUsed = Math.min(cartTotal, creditBalance);
-        setCreditBalance(prev => prev - creditsUsed);
-      }
-      
       clearCart();
       alert(`Order Placed Successfully! Order Number: ${response.data.orderNumber}`);
       navigate('/profile/orders');
@@ -119,7 +108,7 @@ export default function Checkout() {
     }
   };
 
-  const finalTotal = useCredit ? Math.max(0, cartTotal - creditBalance) : cartTotal;
+  const finalTotal = cartTotal;
 
   return (
     <div className="min-h-screen bg-background pt-32 pb-24 px-6 md:px-12">
@@ -246,27 +235,6 @@ export default function Checkout() {
                   </motion.div>
                 )}
               </AnimatePresence>
-              {/* INFAMOUS Credits Toggle */}
-              {creditBalance > 0 && (
-                <div className="mb-8 p-4 border border-black/10 rounded-[16px] flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-sm flex items-center gap-2">
-                      INFAMOUS Credits Available
-                    </p>
-                    <p className="text-xs text-textSecondary mt-1">Balance: ₹{creditBalance.toLocaleString()}</p>
-                  </div>
-                  <button 
-                    onClick={() => setUseCredit(!useCredit)}
-                    className={`w-12 h-6 rounded-full p-1 transition-colors ${useCredit ? 'bg-luxuryBlue' : 'bg-black/10'}`}
-                  >
-                    <motion.div 
-                      layout
-                      className="w-4 h-4 bg-white rounded-full shadow-sm"
-                      animate={{ x: useCredit ? 24 : 0 }}
-                    />
-                  </button>
-                </div>
-              )}
 
               <Button onClick={processPayment} isLoading={isLoading} className="w-full">
                 Pay ₹{finalTotal.toLocaleString()}
@@ -320,12 +288,6 @@ export default function Checkout() {
                 <span>Shipping</span>
                 <span>Calculated at next step</span>
               </div>
-              {useCredit && (
-                <div className="flex justify-between text-luxuryBlue font-medium">
-                  <span>Credits Applied</span>
-                  <span>-₹{Math.min(cartTotal, creditBalance).toLocaleString()}</span>
-                </div>
-              )}
             </div>
 
             <div className="border-t border-black/10 mt-6 pt-6 flex justify-between items-end">

@@ -14,8 +14,20 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000;
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: true,
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
@@ -48,7 +60,7 @@ const authenticateToken = (req: any, res: any, next: any) => {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'Unauthorized' });
   jwt.verify(token, process.env.JWT_ACCESS_SECRET || 'secret', (err: any, user: any) => {
-    if (err) return res.status(403).json({ message: 'Forbidden' });
+    if (err) return res.status(401).json({ message: 'Unauthorized - Token expired or invalid' });
     req.user = user;
     next();
   });
@@ -445,20 +457,267 @@ app.get('/api/orders', authenticateToken, async (req: any, res) => {
 // --- ADMIN API ---
 const verifyAdmin = (req: any, res: any, next: any) => {
   authenticateToken(req, res, () => {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ message: 'Admin access required' });
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
     next();
   });
 };
 
-app.post('/api/admin/products', verifyAdmin, async (req, res) => {
-  const { name, slug, short_description, description, category_id, brand, status, seo_title, seo_description } = req.body;
+// --- HEALTH CHECK ---
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'infamous-api',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// --- SHIPPING CALCULATION ---
+app.post('/api/shipping/calculate', (req, res) => {
   try {
-    const result = await pool.query(
+    const { pincode } = req.body;
+    
+    if (!pincode || typeof pincode !== 'string' || pincode.length !== 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_PINCODE',
+        message: 'A valid 6-digit Indian pincode is required.'
+      });
+    }
+
+    const isMumbai = pincode.startsWith('400');
+    const currentHour = new Date().getHours();
+    
+    let deliveryType = 'STANDARD';
+    let charge = 100;
+    let estimatedDelivery = '3-5 Business Days';
+    let slot = null;
+
+    if (isMumbai) {
+      if (currentHour < 17) {
+        deliveryType = 'SAME_DAY';
+        charge = 150;
+        estimatedDelivery = 'Today by 9 PM';
+        slot = 'Evening Slot';
+      } else {
+        deliveryType = 'NEXT_DAY';
+        charge = 100;
+        estimatedDelivery = 'Tomorrow by 9 PM';
+        slot = 'Next Day Slot';
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      shipping: {
+        available: true,
+        charge,
+        estimatedDelivery,
+        deliveryType,
+        slot
+      }
+    });
+  } catch (error) {
+    console.error('Shipping calculation error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'SHIPPING_CALCULATION_FAILED',
+      message: 'Unable to calculate delivery for this address.'
+    });
+  }
+});
+
+// --- REVIEW ELIGIBILITY ---
+app.get('/api/products/:id/review-eligibility', authenticateToken, async (req: any, res) => {
+  try {
+    const productId = req.params.id;
+    const userId = req.user.userId; // user object is created by authenticateToken
+    
+    // Check if the user has an order that contains this product
+    const result = await pool.query(`
+      SELECT o.id 
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN product_variants pv ON oi.variant_id = pv.id
+      WHERE o.user_id = $1 AND pv.product_id = $2 AND o.status IN ('DELIVERED')
+      LIMIT 1
+    `, [userId, productId]);
+    
+    if (result.rowCount && result.rowCount > 0) {
+      return res.status(200).json({ eligible: true });
+    } else {
+      return res.status(200).json({ 
+        eligible: false, 
+        reason: 'PRODUCT_NOT_PURCHASED_OR_DELIVERED' 
+      });
+    }
+  } catch (error) {
+    console.error('Review eligibility error:', error);
+    return res.status(500).json({
+      eligible: false,
+      reason: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
+app.get('/api/admin/products', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT p.*,
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', v.id, 'sku', v.sku, 'color', v.color, 'size', v.size, 'price', v.price, 'stock', v.stock)) FILTER (WHERE v.id IS NOT NULL), '[]') AS variants,
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', m.id, 'cloudinary_url', m.cloudinary_url, 'is_cover', m.is_cover)) FILTER (WHERE m.id IS NOT NULL), '[]') AS media,
+        c.name as category
+      FROM products p
+      LEFT JOIN product_variants v ON p.id = v.product_id
+      LEFT JOIN product_images m ON p.id = m.product_id
+      LEFT JOIN categories c ON p.category_id = c.id
+      GROUP BY p.id, c.name
+      ORDER BY p.created_at DESC
+    `);
+    res.status(200).json({ products: result.rows });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/products/:id', verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(`
+      SELECT p.*,
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', v.id, 'sku', v.sku, 'color', v.color, 'size', v.size, 'price', v.price, 'stock', v.stock)) FILTER (WHERE v.id IS NOT NULL), '[]') AS variants,
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', m.id, 'cloudinary_url', m.cloudinary_url, 'is_cover', m.is_cover)) FILTER (WHERE m.id IS NOT NULL), '[]') AS media,
+        c.name as category
+      FROM products p
+      LEFT JOIN product_variants v ON p.id = v.product_id
+      LEFT JOIN product_images m ON p.id = m.product_id
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.id = $1
+      GROUP BY p.id, c.name
+    `, [id]);
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Product not found' });
+    res.status(200).json({ product: result.rows[0] });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.post('/api/admin/products', verifyAdmin, async (req, res) => {
+  const { name, slug, short_description, description, category_id, brand, status, seo_title, seo_description, variants, media } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const categoryIdVal = (category_id === '' || category_id === undefined) ? null : category_id;
+    const finalName = name || 'Untitled Product';
+    const finalSlug = slug || `draft-${Date.now()}`;
+    
+    const result = await client.query(
       `INSERT INTO products (name, slug, short_description, description, category_id, brand, status, seo_title, seo_description) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [name, slug, short_description, description, category_id, brand, status, seo_title, seo_description]
+      [finalName, finalSlug, short_description || '', description || '', categoryIdVal, brand || '', status || 'DRAFT', seo_title || '', seo_description || '']
     );
-    res.status(201).json({ message: 'Product created', product: result.rows[0] });
+    const product = result.rows[0];
+    const productId = product.id;
+
+    if (variants && Array.isArray(variants)) {
+      for (const v of variants) {
+        await client.query(
+          `INSERT INTO product_variants (product_id, sku, color, size, price, stock, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [productId, v.sku || null, v.color || '', v.size || '', v.price || 0, v.stock || 0, v.status || 'ACTIVE']
+        );
+      }
+    }
+
+    if (media && Array.isArray(media)) {
+      for (const m of media) {
+        await client.query(
+          `INSERT INTO product_images (product_id, cloudinary_url, is_cover)
+           VALUES ($1, $2, $3)`,
+          [productId, m.cloudinary_url || '', m.is_cover || false]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ message: 'Product created', product });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/admin/products/:id', verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, slug, short_description, description, category_id, brand, status, seo_title, seo_description, variants, media } = req.body;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    const categoryIdVal = (category_id === '' || category_id === undefined) ? null : category_id;
+    const finalName = name || 'Untitled Product';
+    const finalSlug = slug || `draft-${id}-${Date.now()}`;
+    
+    const result = await client.query(
+      `UPDATE products 
+       SET name = $1, slug = $2, short_description = $3, description = $4, category_id = $5, brand = $6, status = $7, seo_title = $8, seo_description = $9, updated_at = NOW()
+       WHERE id = $10 RETURNING *`,
+      [finalName, finalSlug, short_description || '', description || '', categoryIdVal, brand || '', status || 'DRAFT', seo_title || '', seo_description || '', id]
+    );
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    const product = result.rows[0];
+
+    // Delete existing variants and images to replace them
+    await client.query('DELETE FROM product_variants WHERE product_id = $1', [id]);
+    await client.query('DELETE FROM product_images WHERE product_id = $1', [id]);
+
+    if (variants && Array.isArray(variants)) {
+      for (const v of variants) {
+        await client.query(
+          `INSERT INTO product_variants (product_id, sku, color, size, price, stock, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [id, v.sku || null, v.color || '', v.size || '', v.price || 0, v.stock || 0, v.status || 'ACTIVE']
+        );
+      }
+    }
+
+    if (media && Array.isArray(media)) {
+      for (const m of media) {
+        await client.query(
+          `INSERT INTO product_images (product_id, cloudinary_url, is_cover)
+           VALUES ($1, $2, $3)`,
+          [id, m.cloudinary_url || '', m.is_cover || false]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Product updated', product });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/admin/products/:id', verifyAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query('DELETE FROM products WHERE id = $1 RETURNING id', [id]);
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Product not found' });
+    res.status(200).json({ message: 'Product deleted successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal server error' });

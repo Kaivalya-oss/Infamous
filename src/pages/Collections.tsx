@@ -1,3 +1,4 @@
+import api from '../lib/axios';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -10,7 +11,7 @@ export default function Collections() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('http://localhost:5000/api/products')
+    api.get('/api/products')
       .then(res => setProducts(res.data.products || []))
       .catch(err => console.error("Error fetching products", err))
       .finally(() => setLoading(false));

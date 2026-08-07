@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider, useFormContext } from 'react-hook-form';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../lib/axios';
 import { motion } from 'framer-motion';
 import { Save, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import ProductVariantManager from './ProductVariantManager';
 import ProductMediaManager from './ProductMediaManager';
-import ProductAttributesManager from './ProductAttributesManager';
 import ProductPreview from './ProductPreview';
 
 import { Input } from '../../components/ui/Input';
@@ -23,12 +22,14 @@ const ProductGeneralForm = () => {
         <Input 
           label="Product Name" 
           placeholder="e.g. Heavyweight Core Hoodie" 
+          theme="dark"
           {...register('name', { required: 'Name is required' })}
           error={errors.name?.message as string}
         />
         <Input 
           label="URL Slug" 
           placeholder="e.g. heavyweight-core-hoodie" 
+          theme="dark"
           {...register('slug', { required: 'Slug is required' })}
           error={errors.slug?.message as string}
         />
@@ -50,6 +51,7 @@ const ProductGeneralForm = () => {
         <Input 
           label="Brand" 
           placeholder="e.g. INFAMOUS" 
+          theme="dark"
           {...register('brand')}
         />
       </div>
@@ -91,7 +93,6 @@ const STEPS = [
   { id: 'general', label: 'General Info' },
   { id: 'variants', label: 'Variants' },
   { id: 'media', label: 'Media' },
-  { id: 'attributes', label: 'Attributes' },
   { id: 'preview', label: 'Preview & SEO' }
 ];
 
@@ -125,7 +126,7 @@ export default function ProductEditor() {
   // Load existing draft if ID exists
   useEffect(() => {
     if (id && id !== 'new') {
-      axios.get(`http://localhost:5000/api/admin/products/${id}`)
+      api.get(`/api/products/${id}`)
         .then(res => {
           reset(res.data.product);
           setLastSaved(new Date());
@@ -178,8 +179,7 @@ export default function ProductEditor() {
       case 0: return <ProductGeneralForm />;
       case 1: return <ProductVariantManager />;
       case 2: return <ProductMediaManager />;
-      case 3: return <ProductAttributesManager />;
-      case 4: return <ProductPreview />;
+      case 3: return <ProductPreview />;
       default: return null;
     }
   };
@@ -188,16 +188,14 @@ export default function ProductEditor() {
     setSaveStatus('saving');
     try {
       if (id === 'new') {
-        const response = await axios.post('http://localhost:5000/api/admin/products', data);
+        const response = await api.post('/api/admin/products', data);
         setSaveStatus('saved');
         setLastSaved(new Date());
         setTimeout(() => {
           navigate(`/admin/products/${response.data.product.id}`);
         }, 1000);
       } else {
-        // Mocking PUT request for now, or you could implement it in the backend
-        // await axios.put(`http://localhost:5000/api/admin/products/${id}`, data);
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await api.put(`/api/admin/products/${id}`, data);
         setSaveStatus('saved');
         setLastSaved(new Date());
       }
@@ -212,25 +210,46 @@ export default function ProductEditor() {
   return (
     <div className="w-full max-w-6xl mx-auto pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 sticky top-0 bg-background/80 backdrop-blur-md z-10 py-4 border-b border-white/10">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/admin/products')} className="p-2 hover:bg-white/10 rounded-full transition-colors" type="button">
+      <div className="flex items-center justify-between mb-8 sticky top-0 bg-[#0a0a0a]/80 backdrop-blur-xl z-20 py-5 px-6 -mx-6 border-b border-white/5 rounded-b-3xl shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-5">
+          <button onClick={() => navigate('/admin/products')} className="p-2.5 bg-white/5 hover:bg-white/15 rounded-full transition-colors text-white" type="button">
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-2xl font-medium">{id === 'new' ? 'Create Product' : 'Edit Product'}</h1>
-            <div className="flex items-center gap-2 text-sm text-textSecondary mt-1">
-              {saveStatus === 'saving' && <span className="animate-pulse">Saving draft...</span>}
-              {saveStatus === 'saved' && <span className="text-green-400 flex items-center gap-1"><CheckCircle size={14} /> Saved</span>}
-              {saveStatus === 'error' && <span className="text-red-400 flex items-center gap-1"><AlertCircle size={14} /> Save failed</span>}
-              {saveStatus === 'idle' && lastSaved && <span>Last saved: {lastSaved.toLocaleTimeString()}</span>}
+            <h1 className="text-[28px] font-serif italic text-white tracking-wide">{id === 'new' ? 'Create Product' : 'Edit Product'}</h1>
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[1px] mt-1">
+              {saveStatus === 'saving' && <span className="text-yellow-400/80 animate-pulse">Saving draft...</span>}
+              {saveStatus === 'saved' && <span className="text-emerald-400 flex items-center gap-1.5"><CheckCircle size={14} /> Saved</span>}
+              {saveStatus === 'error' && <span className="text-red-400 flex items-center gap-1.5"><AlertCircle size={14} /> Save failed</span>}
+              {saveStatus === 'idle' && lastSaved && <span className="text-white/40">Last saved: {lastSaved.toLocaleTimeString()}</span>}
             </div>
           </div>
         </div>
         
         <div className="flex gap-4">
-          <Button variant="outline" className="border-white/10 hover:bg-white/10" type="button" onClick={() => methods.handleSubmit(onSubmit)()}>Save as Draft</Button>
-          <Button disabled={activeStep !== 4} type="button" onClick={() => methods.handleSubmit(onSubmit)()}>Publish Product</Button>
+          <Button 
+            variant="outline" 
+            className="border-white/15 text-white/80 hover:bg-white/10 hover:border-white/30 hover:text-white" 
+            type="button" 
+            onClick={() => {
+              const data = methods.getValues();
+              data.status = 'DRAFT';
+              onSubmit(data);
+            }}
+          >
+            Save as Draft
+          </Button>
+          <Button 
+            disabled={activeStep !== 3} 
+            type="button" 
+            onClick={() => {
+              methods.setValue('status', 'PUBLISHED');
+              methods.handleSubmit(onSubmit)();
+            }}
+            className="bg-white text-black hover:bg-white/90 shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] disabled:opacity-50 disabled:shadow-none"
+          >
+            Publish Product
+          </Button>
         </div>
       </div>
 
@@ -280,13 +299,9 @@ export default function ProductEditor() {
               Previous Step
             </Button>
             
-            {activeStep < STEPS.length - 1 ? (
+            {activeStep < STEPS.length - 1 && (
               <Button type="button" onClick={() => setActiveStep(prev => prev + 1)}>
                 Next Step
-              </Button>
-            ) : (
-              <Button type="submit" disabled={!isDirty}>
-                Validate & Publish
               </Button>
             )}
           </div>

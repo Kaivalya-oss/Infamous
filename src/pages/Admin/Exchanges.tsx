@@ -1,3 +1,4 @@
+import api from '../../lib/axios';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +12,7 @@ export default function AdminExchanges() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/admin/exchanges')
+    api.get('/api/admin/exchanges')
       .then(res => {
         setExchanges(res.data.exchanges || []);
         setError(false);
@@ -99,7 +100,6 @@ export default function AdminExchanges() {
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-xs text-white/60">Charge: {req.exchangeCharges}</p>
-                      <p className="text-xs text-white/60 mt-0.5">Credit: <span className={req.creditsGenerated !== '₹0' ? 'text-green-400 font-medium' : ''}>{req.creditsGenerated}</span></p>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${

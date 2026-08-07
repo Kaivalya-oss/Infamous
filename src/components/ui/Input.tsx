@@ -10,10 +10,11 @@ export function cn(...inputs: ClassValue[]) {
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
+  theme?: 'light' | 'dark';
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, type, ...props }, ref) => {
+  ({ className, label, error, type, theme = 'light', ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
     
     const isPassword = type === 'password';
@@ -21,7 +22,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
     return (
       <div className="w-full flex flex-col gap-1.5">
-        <label className="text-xs font-medium tracking-[1px] text-textSecondary uppercase">
+        <label className={cn(
+          "text-xs font-medium tracking-[1px] uppercase",
+          theme === 'dark' ? "text-white/60" : "text-textSecondary"
+        )}>
           {label}
         </label>
         <div className="relative">
@@ -29,7 +33,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             type={inputType}
             className={cn(
-              "w-full h-12 bg-transparent border-b border-black/10 focus:border-black outline-none transition-colors duration-300 font-light text-textPrimary placeholder:text-textSecondary/50",
+              "w-full h-12 bg-transparent border-b outline-none transition-colors duration-300 font-light",
+              theme === 'dark' 
+                ? "border-white/20 focus:border-white text-white placeholder:text-white/40"
+                : "border-black/10 focus:border-black text-textPrimary placeholder:text-textSecondary/50",
               isPassword && "pr-10",
               error && "border-red-500 focus:border-red-500",
               className
@@ -40,7 +47,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-full flex items-center justify-center text-textSecondary hover:text-textPrimary transition-colors"
+              className={cn(
+                "absolute right-0 top-1/2 -translate-y-1/2 w-10 h-full flex items-center justify-center transition-colors",
+                theme === 'dark' ? "text-white/60 hover:text-white" : "text-textSecondary hover:text-textPrimary"
+              )}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>

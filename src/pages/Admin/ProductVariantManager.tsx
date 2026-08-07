@@ -4,6 +4,21 @@ import { Plus, Trash2, Zap, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
 export default function ProductVariantManager() {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      const formElements = Array.from(
+        document.querySelectorAll('input:not([disabled]), select:not([disabled])')
+      ) as HTMLElement[];
+      
+      const index = formElements.indexOf(e.currentTarget);
+      if (index > -1 && index < formElements.length - 1) {
+        formElements[index + 1].focus();
+      }
+    }
+  };
+
   const { control, watch, setValue, register, formState: { errors } } = useFormContext();
   
   // Use FieldArray to manage the variants directly in the master ProductEditor form state
@@ -82,12 +97,10 @@ export default function ProductVariantManager() {
     const skus = new Set();
     
     variants.forEach((v: any, index: number) => {
-      if (!v.sku) {
-        errs.push(`Variant row ${index + 1} is missing a SKU.`);
-      } else if (skus.has(v.sku)) {
+      if (v.sku && skus.has(v.sku)) {
         errs.push(`Duplicate SKU detected: ${v.sku}`);
       }
-      skus.add(v.sku);
+      if (v.sku) skus.add(v.sku);
       
       if (v.stock < 0) errs.push(`Variant row ${index + 1} has negative stock.`);
       if (v.price < 0) errs.push(`Variant row ${index + 1} has negative price.`);
@@ -150,7 +163,7 @@ export default function ProductVariantManager() {
               <label className="block text-xs text-white/60 mb-1">SKU Prefix</label>
               <input type="text" value={skuPrefix} onChange={(e) => setSkuPrefix(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-sm" placeholder="INF-HOOD" />
             </div>
-            <Button onClick={applyBulkOperations} variant="outline" className="h-10">Apply All</Button>
+            <Button onClick={applyBulkOperations} className="h-10 bg-white text-black hover:bg-white/90">Apply to all</Button>
           </div>
         </div>
       )}
@@ -192,14 +205,16 @@ export default function ProductVariantManager() {
                   <td className="px-4 py-2">
                     <input 
                       {...register(`variants.${index}.sku`)} 
-                      className={`w-full bg-black/20 border rounded px-2 py-1 text-sm focus:outline-none ${!variants[index]?.sku ? 'border-red-500/50' : 'border-white/10 focus:border-white/30'}`}
-                      placeholder="SKU Required"
+                      onKeyDown={handleKeyDown}
+                      className={`w-full bg-black/20 border rounded px-2 py-1 text-sm focus:outline-none border-white/10 focus:border-white/30`}
+                      placeholder="SKU (Optional)"
                     />
                   </td>
                   <td className="px-4 py-2">
                     <input 
                       type="number"
                       {...register(`variants.${index}.price`)} 
+                      onKeyDown={handleKeyDown}
                       className="w-24 bg-black/20 border border-white/10 rounded px-2 py-1 text-sm focus:outline-none focus:border-white/30"
                     />
                   </td>
@@ -207,12 +222,14 @@ export default function ProductVariantManager() {
                     <input 
                       type="number"
                       {...register(`variants.${index}.stock`)} 
+                      onKeyDown={handleKeyDown}
                       className="w-20 bg-black/20 border border-white/10 rounded px-2 py-1 text-sm focus:outline-none focus:border-white/30"
                     />
                   </td>
                   <td className="px-4 py-2">
                     <select 
                       {...register(`variants.${index}.status`)}
+                      onKeyDown={handleKeyDown}
                       className="bg-black/20 border border-white/10 rounded px-2 py-1 text-sm focus:outline-none"
                     >
                       <option value="ACTIVE">Active</option>

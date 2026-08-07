@@ -1,3 +1,4 @@
+import api from '../../lib/axios';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
@@ -30,7 +31,7 @@ export default function SecuritySettings() {
   const onSubmit = async (data: PasswordFormValues) => {
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/auth/update-password', {
+      await api.post('/api/auth/update-password', {
         currentPassword: data.currentPassword,
         newPassword: data.newPassword
       });

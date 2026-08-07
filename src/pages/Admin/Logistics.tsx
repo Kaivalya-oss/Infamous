@@ -1,3 +1,4 @@
+import api from '../../lib/axios';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,7 +15,7 @@ export default function Logistics() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/admin/logistics')
+    api.get('/api/admin/logistics')
       .then(res => {
         setOrders(res.data.orders || []);
         setError(false);

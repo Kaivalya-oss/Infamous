@@ -1,3 +1,4 @@
+import api from '../lib/axios';
 import { useEffect, useRef, useState } from 'react';
 import Lenis from 'lenis';
 import { motion, useInView } from 'framer-motion';
@@ -75,7 +76,7 @@ export default function Home() {
 
   useEffect(() => {
     // Fetch products dynamically from the API
-    axios.get('http://localhost:5000/api/products')
+    api.get('/api/products')
       .then(response => {
         setProducts(response.data.products || []);
       })

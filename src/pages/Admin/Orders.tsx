@@ -1,3 +1,4 @@
+import api from '../../lib/axios';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, Truck, X, Save } from 'lucide-react';
@@ -21,7 +22,7 @@ export default function AdminOrders() {
 
   const fetchOrders = () => {
     setLoading(true);
-    axios.get('http://localhost:5000/api/admin/orders')
+    api.get('/api/admin/orders')
       .then(res => {
         setOrders(res.data.orders || []);
         setError(false);

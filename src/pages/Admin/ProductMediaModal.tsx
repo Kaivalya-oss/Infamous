@@ -12,17 +12,8 @@ export default function ProductMediaModal({ product, onClose }: ProductMediaModa
   const [activeTab, setActiveTab] = useState<'main' | 'variant'>('main');
   const [selectedVariant, setSelectedVariant] = useState('Black');
 
-  // Mock variant media state
-  const [variantMedia, setVariantMedia] = useState<Record<string, any[]>>({
-    'Black': [
-      { id: '1', url: '/lookbook_1_1782146201135.png', isDefault: true },
-      { id: '2', url: '/lookbook_2_1782146201135.png', isDefault: false }
-    ],
-    'Olive': [
-      { id: '3', url: '/lookbook_3_1782146201135.png', isDefault: true }
-    ],
-    'Cream': []
-  });
+  // Dynamic variant media state derived from product variants (placeholder structure)
+  const [variantMedia, setVariantMedia] = useState<Record<string, any[]>>({});
 
   if (!product) return null;
 

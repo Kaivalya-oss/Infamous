@@ -1,3 +1,4 @@
+import api from '../lib/axios';
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
@@ -18,7 +19,7 @@ export default function ProductDetails() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get(`http://localhost:5000/api/products/${slug}`)
+    api.get(`/api/products/${slug}`)
       .then(res => {
         setProduct(res.data.product);
         if (res.data.product.variants && res.data.product.variants.length > 0) {

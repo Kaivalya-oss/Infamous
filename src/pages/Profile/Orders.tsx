@@ -1,3 +1,4 @@
+import api from '../../lib/axios';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -11,7 +12,7 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/orders')
+    api.get('/api/orders')
       .then(res => {
         setOrders(res.data.orders);
         setIsLoading(false);

@@ -13,7 +13,6 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ProfileLayout from './pages/Profile/ProfileLayout';
-import Wallet from './pages/Profile/Wallet';
 import Orders from './pages/Profile/Orders';
 import PersonalInfo from './pages/Profile/PersonalInfo';
 import SecuritySettings from './pages/Profile/SecuritySettings';
@@ -31,8 +30,6 @@ import AdminOrders from './pages/Admin/Orders';
 import AdminCustomers from './pages/Admin/Customers';
 import AdminExchanges from './pages/Admin/Exchanges';
 import AdminLogistics from './pages/Admin/Logistics';
-import AdminCredits from './pages/Admin/Credits';
-import AdminAnalytics from './pages/Admin/Analytics';
 import AdminSettings from './pages/Admin/Settings';
 import AdminLogin from './pages/Admin/AdminLogin';
 
@@ -67,9 +64,7 @@ export default function App() {
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="customers" element={<AdminCustomers />} />
                   <Route path="exchanges" element={<AdminExchanges />} />
-                  <Route path="credits" element={<AdminCredits />} />
                   <Route path="logistics" element={<AdminLogistics />} />
-                  <Route path="analytics" element={<AdminAnalytics />} />
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>
               </Route>
@@ -79,7 +74,6 @@ export default function App() {
                 <Route element={<ProfileLayout />}>
                   <Route index element={<PersonalInfo />} />
                   <Route path="orders" element={<Orders />} />
-                  <Route path="wallet" element={<Wallet />} />
                   <Route path="exchanges" element={<Exchanges />} />
                   <Route path="settings" element={<SecuritySettings />} />
                 </Route>

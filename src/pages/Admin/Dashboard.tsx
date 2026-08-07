@@ -1,3 +1,4 @@
+import api from '../../lib/axios';
 import { motion } from 'framer-motion';
 import { IndianRupee, ShoppingBag, Package, RefreshCw } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
@@ -12,7 +13,7 @@ export default function Dashboard() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/admin/dashboard')
+    api.get('/api/admin/dashboard')
       .then(res => {
         setData(res.data);
         setError(false);

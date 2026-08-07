@@ -6,6 +6,8 @@ export default function ScrollToTop() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
   }, [pathname]);
 
   return null;

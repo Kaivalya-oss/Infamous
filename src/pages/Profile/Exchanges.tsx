@@ -5,16 +5,7 @@ import { Button } from '../../components/ui/Button';
 
 export default function Exchanges() {
   const navigate = useNavigate();
-  const activeExchanges = [
-    {
-      id: 'EX-9102-A',
-      originalItem: 'Heavyweight Core Hoodie (Size: M)',
-      newItem: 'Heavyweight Core Hoodie (Size: L)',
-      status: 'Pending Verification',
-      date: '2026-06-25',
-      type: 'Size Change'
-    }
-  ];
+  const activeExchanges: any[] = [];
 
   return (
     <motion.div 

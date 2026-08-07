@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Archive, ShoppingBag, Users, RefreshCw, Wallet, Truck, BarChart3, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, Archive, ShoppingBag, Users, RefreshCw, Truck, Settings, LogOut } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 
 export default function AdminLayout() {
@@ -19,9 +19,7 @@ export default function AdminLayout() {
     { name: 'Orders', path: '/admin/orders', icon: ShoppingBag },
     { name: 'Customers', path: '/admin/customers', icon: Users },
     { name: 'Exchanges', path: '/admin/exchanges', icon: RefreshCw },
-    { name: 'Credits Wallet', path: '/admin/credits', icon: Wallet },
     { name: 'Logistics', path: '/admin/logistics', icon: Truck },
-    { name: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];
 
